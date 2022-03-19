@@ -8,6 +8,23 @@ let filters = {
   formatTimestamp (timestamp) {
     let datetime = new Date(timestamp)
     return datetime.toLocaleTimeString('en-US')
+  },
+
+  formatModelName (model, modelIndex, type) {
+    if (type === 'abx') {
+      let modelname = model.toLowerCase()
+      if (modelname === 'proposed') {
+        return model
+      } else {
+        return 'model' + '_' + modelIndex
+      }
+    } else {
+      if (['raw', 'reconstruct'].includes(model)) {
+        return model
+      } else {
+        return 'model_' + modelIndex
+      }
+    }
   }
 }
 

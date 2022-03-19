@@ -3,6 +3,7 @@ REST API Resource Routing
 http://flask-restplus.readthedocs.io
 """
 import os
+import shutil
 import pandas as pd
 from collections import defaultdict
 from datetime import datetime
@@ -14,6 +15,7 @@ from . import api_rest
 
 
 wav_source_path = "/home/samba/public/Results/Test/resource/wav"
+api_prefix= '/api/wav/resource'
 
 class SecureResource(Resource):
     """ Calls require_auth decorator on all requests """
@@ -60,15 +62,32 @@ class WavPathResource(Resource):
         model_list = []
         wav_list = []
         text_list = []
+        front_model_name = ['reconstruct', 'raw']
+        model_wav_score_list = defaultdict(dict)
+        model_wav_list = defaultdict(dict)
         for model in os.listdir(wav_dir):
             if os.path.isdir(os.path.join(wav_dir, model)):
                 model_list.append(model)
+        for name in front_model_name:
+            if name in model_list:
+                model_list.remove(name)
+                model_list.insert(0, name)
         with open(os.path.join(wav_dir, "test.txt"), "r") as f:
             for line in f.readlines():
                 wav_list.append(line.strip().split("|")[0] + ".wav")
                 text_list.append(line.strip().split("|")[1])
+        for model in model_list:
+            for wav in wav_list:
+                model_wav_list[model][wav] = '/'.join([api_prefix, type, resource_id, model, wav]) # wav_path 初始化
+                model_wav_score_list[model][wav] = 3.0 # 打分初始化
                    
-        return {"model_list": model_list, "wav_list": wav_list, "text_list": text_list}
+        return {
+            "model_list": model_list,
+            "wav_list": wav_list, 
+            "text_list": text_list, 
+            "model_wav_list": dict(model_wav_list),
+            "model_wav_score_list": dict(model_wav_score_list)
+        }
 
     def post(self, type, resource_id):
         """
@@ -79,26 +98,44 @@ class WavPathResource(Resource):
         wav_list = json_payload["wav_list"]
         model_wav_score_list = json_payload["model_wav_score_list"]
 
-        result_path = os.path.abspath(os.path.join(wav_source_path, type, resource_id, f"{type}_result.csv"))
         df_columns = ["time", "user", "id", "type", "model", "wav", "score"]
-        now_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now_time = datetime.now().strftime("%Y-%m-%d-%H_%M_%S")
+
+        result_path = os.path.abspath(os.path.join(wav_source_path, type, resource_id, f"result.csv"))
+        new_path = os.path.abspath(os.path.join(wav_source_path, type, resource_id, f"{now_time}.csv"))
 
         if os.path.exists(result_path):
             result = pd.read_csv(result_path)
         else:
-            open(result_path, "w").close()
             result = pd.DataFrame(columns=df_columns)
+            result.to_csv(result_path, index=False)
+        new_data = pd.DataFrame(columns=df_columns)
+        new_data.to_csv(new_path, index=False)
 
-        user = result.user.max() + 1 if len(result) > 0 else 1        
-
+        user = result.user.max() + 1 if len(result) > 0 else 1   
+        
         for model in model_list:
             for wav_index in range(len(wav_list)):
                 wav = wav_list[wav_index]
-                score = model_wav_score_list[model][wav_index]
-                result = result.append({"time": now_time, "user": user, "id": resource_id, "type": type, "model": model, "wav": wav, "score": score}, ignore_index=True)
+                score = model_wav_score_list[model][wav]
+                data_dict = {"time": now_time, "user": user, "id": resource_id,
+                             "type": type, "model": model, "wav": wav, "score": score}
+                result = result.append(data_dict, ignore_index=True)
+                new_data = new_data.append(data_dict, ignore_index=True)
         result.to_csv(result_path, index=False)
+        new_data.to_csv(new_path, index=False)
+        print(result)
 
-        return {"status": "ok"}
+        return {"message": "ok"}
+
+    def delete(self, type, resource_id):
+        """
+        Delete wav path
+        """
+        result_path = os.path.abspath(os.path.join(wav_source_path, type, resource_id, f"result.csv"))
+        if os.path.exists(result_path):
+            os.remove(result_path)
+        return {"message": "ok"}
 
 @api_rest.route('/wav/result/<string:type>/<string:resource_id>')
 class WavResultResource(Resource):
@@ -109,13 +146,13 @@ class WavResultResource(Resource):
         """
         Get wav result
         """
-        result_path = os.path.abspath(os.path.join(wav_source_path, type, resource_id, f"{type}_result.csv"))
+        result_path = os.path.abspath(os.path.join(wav_source_path, type, resource_id, f"result.csv"))
         df_columns = ["time", "user", "id", "type", "model", "wav", "score"]
 
         if os.path.exists(result_path):
             result = pd.read_csv(result_path)
         else:
-            return {"status": "no result"}
+            return {"message": "no result"}
         model_wav_result = result.groupby(["model", "wav"]).mean()
         model_result = result.groupby(["model"]).mean()
         model_list, wav_list = result["model"].unique().tolist(), result["wav"].unique().tolist()
@@ -127,9 +164,14 @@ class WavResultResource(Resource):
             model_score_list[model] = model_result["score"].loc[model].item()
 
             
-        return {"model_wav_score_list": dict(model_wav_score_list), "model_score_list": dict(model_score_list)}
+        return {
+            "model_list": model_list,
+            "wav_list": wav_list,
+            "model_wav_score_list": dict(model_wav_score_list),
+            "model_score_list": dict(model_score_list)
+        }
 
-# @api_rest.route('/wav/resource/<wav_path>')
+# @api_rest.route('/wav/resource/<string:wav_path>')
 # class WaveResource(Resource):
 #     """
 #     WaveResource
@@ -162,23 +204,23 @@ class WaveResource(Resource):
         else:
             return {"error": "wav file not found"}
 
-@api_rest.route('/resource/<string:resource_id>')
-class ResourceOne(Resource):
-    """ Unsecure Resource Class: Inherit from Resource """
+# @api_rest.route('/resource/<string:resource_id>')
+# class ResourceOne(Resource):
+#     """ Unsecure Resource Class: Inherit from Resource """
 
-    def get(self, resource_id):
-        timestamp = datetime.utcnow().isoformat()
-        return {'timestamp': timestamp}
+#     def get(self, resource_id):
+#         timestamp = datetime.utcnow().isoformat()
+#         return {'timestamp': timestamp}
 
-    def post(self, resource_id):
-        json_payload = request.json
-        return {'timestamp': json_payload}, 201
+#     def post(self, resource_id):
+#         json_payload = request.json
+#         return {'timestamp': json_payload}, 201
 
 
-@api_rest.route('/secure-resource/<string:resource_id>')
-class SecureResourceOne(SecureResource):
-    """ Unsecure Resource Class: Inherit from Resource """
+# @api_rest.route('/secure-resource/<string:resource_id>')
+# class SecureResourceOne(SecureResource):
+#     """ Unsecure Resource Class: Inherit from Resource """
 
-    def get(self, resource_id):
-        timestamp = datetime.utcnow().isoformat()
-        return {'timestamp': timestamp}
+#     def get(self, resource_id):
+#         timestamp = datetime.utcnow().isoformat()
+#         return {'timestamp': timestamp}
