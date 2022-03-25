@@ -4,6 +4,7 @@
       <router-link to="/">Home</router-link> |
       <!-- <router-link to="/api">API Sample</router-link> | -->
       <router-link to="/evaluate">Evaluate</router-link> |
+      <router-link to="/video">Video</router-link> |
       <router-link to="/result">Result</router-link>
     </div>
     <div id="logos">
