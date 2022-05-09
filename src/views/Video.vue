@@ -14,7 +14,7 @@
     />
     <button type="primary" class='topcorner' @click="show_label=!show_label">显示标签</button>
 
-    <div class="container">
+    <div class="container-fluid">
       <div class="row" id="result">
         <div class="col-md-12">
           <div class="big-screen">
@@ -41,7 +41,7 @@
             <div v-if="type">
               <h2>{{type}} test</h2>
 
-              <table style="height: 100px" border="2" width="80%">
+              <table style="height: 100px" border="2" width="100%">
                 <tbody>
                   <tr>
                     <th></th>
@@ -248,6 +248,12 @@ audio {
 thead > tr > th:first-child {
   width: 96px;
 }
+
+/* @media screen and (min-width: 1200px) {
+  .container {
+    max-width: 1500px;
+  }
+} */
 
 @media (max-width: 767px) {
   .big-screen {

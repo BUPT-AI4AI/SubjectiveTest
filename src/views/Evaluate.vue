@@ -14,7 +14,7 @@
     />
     <button type="primary" class='topcorner' @click="show_label=!show_label">显示标签</button>
 
-    <div class="container">
+    <div class="container-fluid">
       <div class="row" id="result">
         <div class="col-md-12">
           <div class="big-screen">
@@ -89,7 +89,7 @@
                         v-if="type !== 'abx'"
                         v-model="wav_data.model_wav_score_list[model][wav]"
                         :precision="2"
-                        :step="0.1"
+                        :step="0.5"
                         :min="1"
                         :max="5"
                         size="small">
@@ -213,6 +213,11 @@ export default {
             type: 'success'
           })
         })
+        .then(() => {
+          setTimeout(() => {
+            location.reload()
+          }, 2000)
+        })
         .catch((error) => {
           this.error = error.message
         })
@@ -268,4 +273,10 @@ thead > tr > th:first-child {
     display: none;
   }
 }
+
+/* @media (min-width: 1200px) {
+  .container {
+      max-width: 100%;
+  }
+} */
 </style>
