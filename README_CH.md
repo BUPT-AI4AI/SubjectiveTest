@@ -44,6 +44,26 @@
     
     `yarn build` 会生成生成静态文件到 `/dist/` 文件夹下，Flask 服务会发送静态文件，只需要最后启动一个 Flask 服务器
 
+* 更改端口：
+
+    `vue.config.js` 和 `run.py` 这两个文件夹决定了API的端口
+
+### DEMO
+
+* 评测页面
+
+<p align="center">
+    <img src="./docs/demo1.png" width="100%">
+</p>
+
+* 结果页面
+
+<p align="center">
+    <img src="./docs/demo2.png" width="90%">
+</p>
+
+
+
 #### 重要文件
 
 | Location             |  Content                                   |
